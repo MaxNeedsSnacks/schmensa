@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	tea "github.com/charmbracelet/bubbletea"
 	"net/http"
 	"time"
 )
@@ -23,4 +24,10 @@ func fromJsonUrl[T any](url string) (*T, error) {
 	}
 
 	return &ret, nil
+}
+
+func DelayCmd(d time.Duration, cb tea.Cmd) tea.Cmd {
+	return tea.Tick(d, func(t time.Time) tea.Msg {
+		return cb()
+	})
 }

@@ -1,37 +1,51 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	gloss "github.com/charmbracelet/lipgloss"
 )
 
 var (
-	appStyle = lipgloss.NewStyle().Padding(1, 2)
-
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFFDF5")).
-			Background(lipgloss.Color("#25A065")).
-			Padding(0, 1)
+	spinnerStyle = gloss.NewStyle().
+			Foreground(gloss.Color("#25A065"))
 
 	submitKey = key.NewBinding(
-		key.WithKeys("enter", "ctrl+q"),
-		key.WithHelp("enter", "select item"),
+		key.WithKeys("enter", "ctrl+q", " "),
+		key.WithHelp("enter/␣", "select item"),
 	)
 )
 
+func listStyles() list.Styles {
+	s := list.DefaultStyles()
+
+	s.Title = gloss.NewStyle().
+		Foreground(gloss.Color("#FFFDF5")).
+		Background(gloss.Color("#25A065")).
+		Padding(0, 1)
+
+	return s
+}
+
 type SelectMensaModel struct {
-	list list.Model
+	list    list.Model
+	spinner spinner.Model
+	loading bool
 }
 
 func SelectMensa() tea.Model {
 	model := SelectMensaModel{
-		list: list.New(make([]list.Item, 0), list.NewDefaultDelegate(), 0, 0),
+		list:    list.New(make([]list.Item, 0), list.NewDefaultDelegate(), 0, 0),
+		spinner: spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(spinnerStyle)),
+		loading: true,
 	}
+
 	model.list.Title = "Select a Mensa"
-	model.list.Styles.Title = titleStyle
+	model.list.Styles = listStyles()
 
 	model.list.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{submitKey}
@@ -55,54 +69,72 @@ func loadMensaList() tea.Msg {
 	return mensaMsg(mensas)
 }
 
-func (m mensa) FilterValue() string {
-	return m.Name.De
-}
-func (m mensa) Title() string {
-	return m.Name.De
-}
-func (m mensa) Description() string {
-	return fmt.Sprintf("(ID %s)", m.Id)
-}
+func (m mensa) FilterValue() string { return m.Name.De }
+func (m mensa) Title() string       { return m.Name.De }
+func (m mensa) Description() string { return fmt.Sprintf("(ID %s)", m.Id) }
 
 type mensaMsg *[]mensa
-type errMsg struct{ err error }
-
-func (e errMsg) Error() string { return e.err.Error() }
 
 func (m SelectMensaModel) Init() tea.Cmd {
-	return tea.Sequence(m.list.StartSpinner(), loadMensaList)
+	return tea.Batch(m.spinner.Tick, loadMensaList)
 }
 
 func (m SelectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h, v := appStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
+
+	case spinner.TickMsg:
+		m.spinner, cmd = m.spinner.Update(msg)
+		cmds = append(cmds, cmd)
+
 	case mensaMsg:
 		var items = make([]list.Item, 0, len(*msg))
 		for _, item := range *msg {
 			items = append(items, item)
 		}
 
-		m.list.StopSpinner()
+		m.loading = false
 		return m, m.list.SetItems(items)
+
 	case errMsg:
-		return nil, tea.Quit
+		m.loading = false
+		return m, tea.Quit
+
 	case tea.KeyMsg:
 		if m.list.FilterState() == list.Filtering {
 			break
 		}
 
 		if key.Matches(msg, submitKey) {
-			return nil, tea.Quit
+			return m, func() tea.Msg {
+				if v, ok := m.list.SelectedItem().(mensa); ok {
+					return mensaSelectMsg(v)
+				} else {
+					return errMsg{errors.New("selected item was not a mensa! (somehow...?)")}
+				}
+			}
 		}
 	}
-	var cmd tea.Cmd
+
+	if m.loading {
+		m.spinner, cmd = m.spinner.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
 	m.list, cmd = m.list.Update(msg)
-	return m, cmd
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m SelectMensaModel) View() string {
-	return appStyle.Render(m.list.View())
+	if m.loading {
+		return fmt.Sprintf("%s Loading Mensa List...", m.spinner.View())
+	}
+	return m.list.View()
 }
