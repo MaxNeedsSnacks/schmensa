@@ -74,6 +74,7 @@ func (m mensa) Title() string       { return m.Name.De }
 func (m mensa) Description() string { return fmt.Sprintf("(ID %s)", m.Id) }
 
 type mensaMsg *[]mensa
+type mensaSelectMsg mensa
 
 func (m SelectMensaModel) Init() tea.Cmd {
 	return tea.Batch(m.spinner.Tick, loadMensaList)
@@ -118,6 +119,14 @@ func (m SelectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return errMsg{errors.New("selected item was not a mensa! (somehow...?)")}
 				}
 			}
+		}
+
+	case mensaSelectMsg:
+		// TODO: change to date selection model
+		//  should this really be here and not in the root model...?
+		//  (okay to be fair this entire package structure is probably very weird to seasoned gophers anyways lol)
+		return m, func() tea.Msg {
+			return errMsg{errors.New("not implemented: post mensa-select")}
 		}
 	}
 
