@@ -18,14 +18,15 @@ func Abs[T constraints.Integer](x T) T {
 }
 
 var (
+	// TODO: these are mutable, use methods and separate
 	submitKey = key.NewBinding(
 		key.WithKeys("enter", "ctrl+q", " "),
 		key.WithHelp("enter/␣", "select item"),
 	)
 
 	previousMenuKey = key.NewBinding(
-		key.WithKeys("esc", "shift+esc"),
-		key.WithHelp("esc", "back to previous menu"),
+		key.WithKeys("backspace", "shift+backspace"),
+		key.WithHelp("⌫", "back to previous menu"),
 	)
 )
 
