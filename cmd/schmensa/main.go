@@ -5,7 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"os"
 	"schmensa/internal/data"
-	"schmensa/internal/model/mensa"
+	"schmensa/internal/model"
 	"schmensa/internal/utils"
 	"time"
 )
@@ -50,7 +50,7 @@ func (m mainModel) View() string {
 }
 
 func main() {
-	p := tea.NewProgram(mainModel{inner: mensa.SelectMensa()})
+	p := tea.NewProgram(mainModel{inner: model.SelectMensa()})
 
 	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running program:", err)

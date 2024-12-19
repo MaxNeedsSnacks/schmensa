@@ -1,4 +1,4 @@
-package date
+package model
 
 import (
 	"cmp"
@@ -10,7 +10,6 @@ import (
 	gloss "github.com/charmbracelet/lipgloss"
 	"maps"
 	"schmensa/internal/data"
-	"schmensa/internal/model/mensa"
 	"schmensa/internal/utils"
 	"slices"
 	"strings"
@@ -21,8 +20,8 @@ var (
 	dateSpinner = gloss.NewStyle().
 			Foreground(gloss.Color("#D96546"))
 
-	submitKey       = utils.SubmitKey()
-	previousMenuKey = utils.PreviousMenuKey()
+	dateSubmitKey   = utils.SubmitKey()
+	datePreviousKey = utils.PreviousMenuKey()
 )
 
 func dateListStyle() list.Styles {
@@ -56,10 +55,10 @@ func SelectDate(mensa data.Mensa) tea.Model {
 	model.list.Styles = dateListStyle()
 
 	model.list.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{submitKey, previousMenuKey}
+		return []key.Binding{dateSubmitKey, datePreviousKey}
 	}
 	model.list.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{submitKey, previousMenuKey}
+		return []key.Binding{dateSubmitKey, datePreviousKey}
 	}
 
 	return model
@@ -159,7 +158,7 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
-		case key.Matches(msg, submitKey):
+		case key.Matches(msg, dateSubmitKey):
 			return m, func() tea.Msg {
 				if v, ok := m.list.SelectedItem().(date); ok {
 					return data.NewError(fmt.Sprintf("date selection not implemented! %s", v.Title()))
@@ -167,8 +166,8 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return data.NewError("selected item was not a date! (somehow...?)")
 				}
 			}
-		case key.Matches(msg, previousMenuKey):
-			return utils.ChangeModel(mensa.SelectMensa())
+		case key.Matches(msg, datePreviousKey):
+			return utils.ChangeModel(SelectMensa())
 		}
 	}
 

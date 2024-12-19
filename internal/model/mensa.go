@@ -1,4 +1,4 @@
-package mensa
+package model
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	gloss "github.com/charmbracelet/lipgloss"
 	"schmensa/internal/data"
-	"schmensa/internal/model/date"
 	"schmensa/internal/utils"
 )
 
@@ -16,7 +15,7 @@ var (
 	mensaSpinner = gloss.NewStyle().
 			Foreground(gloss.Color("#25A065"))
 
-	submitKey = utils.SubmitKey()
+	mensaSubmitKey = utils.SubmitKey()
 )
 
 func mensaListStyle() list.Styles {
@@ -47,10 +46,10 @@ func SelectMensa() tea.Model {
 	model.list.Styles = mensaListStyle()
 
 	model.list.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{submitKey}
+		return []key.Binding{mensaSubmitKey}
 	}
 	model.list.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{submitKey}
+		return []key.Binding{mensaSubmitKey}
 	}
 
 	return model
@@ -112,7 +111,7 @@ func (m selectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 
-		if key.Matches(msg, submitKey) {
+		if key.Matches(msg, mensaSubmitKey) {
 			return m, func() tea.Msg {
 				if v, ok := m.list.SelectedItem().(mensa); ok {
 					return mensaSelectMsg(v)
@@ -123,7 +122,7 @@ func (m selectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case mensaSelectMsg:
-		return utils.ChangeModel(date.SelectDate(data.Mensa(msg)))
+		return utils.ChangeModel(SelectDate(data.Mensa(msg)))
 	}
 
 	if m.loading {
