@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
@@ -10,6 +11,7 @@ import (
 	gloss "github.com/charmbracelet/lipgloss"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -86,7 +88,11 @@ func (m selectDateModel) loadDateMap() tea.Msg {
 type date time.Time
 
 func (d date) FilterValue() string {
-	return time.Time(d).Format("Monday January") + " " + d.Title()
+	return strings.Join([]string{
+		d.Title(),
+		d.Description(),
+		time.Time(d).Format("Monday January"),
+	}, " ")
 }
 func (d date) Title() string {
 	return time.Time(d).Format(time.DateOnly)
@@ -115,8 +121,9 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 	case dateMapMsg:
-		dates := slices.SortedFunc(maps.Keys(msg), func(date date, other date) int {
-			return time.Time(date).Day() - time.Time(date).Day()
+		dates := slices.SortedFunc(maps.Keys(msg), func(a, b date) int {
+			first, second := time.Time(a), time.Time(b)
+			return int(first.Unix() - second.Unix())
 		})
 
 		var items = make([]list.Item, 0, len(msg))
@@ -124,6 +131,14 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items = append(items, date)
 		}
 
+		closestDate := slices.MinFunc(dates, func(a, b date) int {
+			currentTime := time.Now()
+			diffA := Abs(time.Time(a).Sub(currentTime))
+			diffB := Abs(time.Time(b).Sub(currentTime))
+			return cmp.Compare(diffA, diffB)
+		})
+
+		m.list.Select(slices.Index(dates, closestDate))
 		m.loading = false
 		return m, m.list.SetItems(items)
 

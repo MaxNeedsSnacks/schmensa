@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/exp/constraints"
 	"net/http"
-	"time"
+	. "time"
 )
+
+func Abs[T constraints.Integer](x T) T {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
 
 var (
 	submitKey = key.NewBinding(
@@ -22,7 +30,7 @@ var (
 )
 
 func FromRemoteJson[T any](url string) (*T, error) {
-	c := &http.Client{Timeout: 1 * time.Second}
+	c := &http.Client{Timeout: 1 * Second}
 
 	res, err := c.Get(url)
 
@@ -40,16 +48,19 @@ func FromRemoteJson[T any](url string) (*T, error) {
 	return &ret, nil
 }
 
-func DelayCmd(d time.Duration, cb tea.Cmd) tea.Cmd {
-	return tea.Tick(d, func(t time.Time) tea.Msg {
+func DelayCmd(d Duration, cb tea.Cmd) tea.Cmd {
+	return tea.Tick(d, func(t Time) tea.Msg {
 		return cb()
 	})
 }
 
-func FormatRelativeToday(targetDate time.Time) string {
-	nowDate := time.Now()
+func FormatRelativeToday(target Time) string {
+	now := Now()
 
-	daysApart := targetDate.Day() - nowDate.Day()
+	nowDate := now.Truncate(24 * Hour)
+	targetDate := target.Truncate(24 * Hour)
+
+	daysApart := int(targetDate.Sub(nowDate).Hours() / 24.0)
 	nowYear, nowWeek := nowDate.ISOWeek()
 	targetYear, targetWeek := targetDate.ISOWeek()
 
@@ -76,7 +87,7 @@ func FormatRelativeToday(targetDate time.Time) string {
 		return "tomorrow"
 	default:
 		if targetDate.Before(nowDate) {
-			return fmt.Sprintf("%d days ago", daysApart)
+			return fmt.Sprintf("%d days ago", Abs(daysApart))
 		} else {
 			switch weeksApart {
 			case 0:
@@ -84,12 +95,12 @@ func FormatRelativeToday(targetDate time.Time) string {
 			case 1:
 				return fmt.Sprintf("next %s", weekday)
 			default:
-				return fmt.Sprintf("%s in %d weeks", weekday, weeksApart)
+				return fmt.Sprintf("%s in %d weeks", weekday, Abs(weeksApart))
 			}
 		}
 	}
 }
 
 func ChangeModel(m tea.Model) (tea.Model, tea.Cmd) {
-	return m, m.Init()
+	return m, tea.Batch(m.Init(), tea.WindowSize())
 }
