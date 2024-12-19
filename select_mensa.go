@@ -11,16 +11,11 @@ import (
 )
 
 var (
-	spinnerStyle = gloss.NewStyle().
-			Foreground(gloss.Color("#25A065"))
-
-	submitKey = key.NewBinding(
-		key.WithKeys("enter", "ctrl+q", " "),
-		key.WithHelp("enter/␣", "select item"),
-	)
+	mensaSpinner = gloss.NewStyle().
+		Foreground(gloss.Color("#25A065"))
 )
 
-func listStyles() list.Styles {
+func mensaListStyle() list.Styles {
 	s := list.DefaultStyles()
 
 	s.Title = gloss.NewStyle().
@@ -31,21 +26,21 @@ func listStyles() list.Styles {
 	return s
 }
 
-type SelectMensaModel struct {
+type selectMensaModel struct {
 	list    list.Model
 	spinner spinner.Model
 	loading bool
 }
 
 func SelectMensa() tea.Model {
-	model := SelectMensaModel{
+	model := selectMensaModel{
 		list:    list.New(make([]list.Item, 0), list.NewDefaultDelegate(), 0, 0),
-		spinner: spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(spinnerStyle)),
+		spinner: spinner.New(spinner.WithSpinner(spinner.Dot), spinner.WithStyle(mensaSpinner)),
 		loading: true,
 	}
 
 	model.list.Title = "Select a Mensa"
-	model.list.Styles = listStyles()
+	model.list.Styles = mensaListStyle()
 
 	model.list.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{submitKey}
@@ -57,30 +52,30 @@ func SelectMensa() tea.Model {
 	return model
 }
 
-const url = "https://mobil.itmc.tu-dortmund.de/canteen-menu/v3/canteens/"
+const canteensUrl = "https://mobil.itmc.tu-dortmund.de/canteen-menu/v3/canteens/"
 
 func loadMensaList() tea.Msg {
-	mensas, err := fromJsonUrl[[]mensa](url)
+	mensas, err := FromRemoteJson[[]mensa](canteensUrl)
 
 	if err != nil {
 		return errMsg{err}
 	}
 
-	return mensaMsg(mensas)
+	return mensaMsg(*mensas)
 }
 
 func (m mensa) FilterValue() string { return m.Name.De }
 func (m mensa) Title() string       { return m.Name.De }
 func (m mensa) Description() string { return fmt.Sprintf("(ID %s)", m.Id) }
 
-type mensaMsg *[]mensa
+type mensaMsg []mensa
 type mensaSelectMsg mensa
 
-func (m SelectMensaModel) Init() tea.Cmd {
+func (m selectMensaModel) Init() tea.Cmd {
 	return tea.Batch(m.spinner.Tick, loadMensaList)
 }
 
-func (m SelectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m selectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -94,8 +89,8 @@ func (m SelectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 	case mensaMsg:
-		var items = make([]list.Item, 0, len(*msg))
-		for _, item := range *msg {
+		var items = make([]list.Item, 0, len(msg))
+		for _, item := range msg {
 			items = append(items, item)
 		}
 
@@ -122,12 +117,7 @@ func (m SelectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case mensaSelectMsg:
-		// TODO: change to date selection model
-		//  should this really be here and not in the root model...?
-		//  (okay to be fair this entire package structure is probably very weird to seasoned gophers anyways lol)
-		return m, func() tea.Msg {
-			return errMsg{errors.New("not implemented: post mensa-select")}
-		}
+		return ChangeModel(SelectDate(mensa(msg)))
 	}
 
 	if m.loading {
@@ -141,7 +131,7 @@ func (m SelectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m SelectMensaModel) View() string {
+func (m selectMensaModel) View() string {
 	if m.loading {
 		return fmt.Sprintf("%s Loading Mensa List...", m.spinner.View())
 	}
