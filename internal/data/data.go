@@ -1,14 +1,14 @@
-package main
+package data
 
-type mensa struct {
+type Mensa struct {
 	Id   string    `json:"id"`
-	Name localized `json:"name"`
+	Name LocString `json:"name"`
 }
 
-type menu []food
+type Menu []Food
 
-type food struct {
-	Title     localized `json:"title"`
+type Food struct {
+	Title     LocString `json:"title"`
 	Type      []string  `json:"type"`
 	Additives []string  `json:"additives"`
 	Category  string    `json:"category"`
@@ -20,10 +20,10 @@ type food struct {
 	DispoId      string    `json:"dispoId"`
 	Counter      string    `json:"counter"`
 	Position     int       `json:"position"`
-	CounterNames localized `json:"counterNames"`
+	CounterNames LocString `json:"counterNames"`
 }
 
-type localized struct {
+type LocString struct {
 	De string `json:"de"`
 	En string `json:"en"`
 }

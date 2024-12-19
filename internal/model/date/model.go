@@ -1,8 +1,7 @@
-package main
+package date
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -10,6 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	gloss "github.com/charmbracelet/lipgloss"
 	"maps"
+	"schmensa/internal/data"
+	"schmensa/internal/model/mensa"
+	"schmensa/internal/utils"
 	"slices"
 	"strings"
 	"time"
@@ -17,7 +19,10 @@ import (
 
 var (
 	dateSpinner = gloss.NewStyle().
-		Foreground(gloss.Color("#D96546"))
+			Foreground(gloss.Color("#D96546"))
+
+	submitKey       = utils.SubmitKey()
+	previousMenuKey = utils.PreviousMenuKey()
 )
 
 func dateListStyle() list.Styles {
@@ -32,14 +37,14 @@ func dateListStyle() list.Styles {
 }
 
 type selectDateModel struct {
-	mensa mensa
+	mensa data.Mensa
 
 	list    list.Model
 	spinner spinner.Model
 	loading bool
 }
 
-func SelectDate(mensa mensa) tea.Model {
+func SelectDate(mensa data.Mensa) tea.Model {
 	model := selectDateModel{
 		mensa:   mensa,
 		list:    list.New(make([]list.Item, 0), list.NewDefaultDelegate(), 0, 0),
@@ -47,7 +52,7 @@ func SelectDate(mensa mensa) tea.Model {
 		loading: true,
 	}
 
-	model.list.Title = fmt.Sprintf("Viewing dates for %s", mensa.Title())
+	model.list.Title = fmt.Sprintf("Viewing dates for %s", mensa.Name.De)
 	model.list.Styles = dateListStyle()
 
 	model.list.AdditionalFullHelpKeys = func() []key.Binding {
@@ -65,18 +70,18 @@ func allMenuUrl(id string) string {
 }
 
 func (m selectDateModel) loadDateMap() tea.Msg {
-	menuMap, err := FromRemoteJson[map[string]menu](allMenuUrl(m.mensa.Id))
+	menuMap, err := utils.FromRemoteJson[map[string]data.Menu](allMenuUrl(m.mensa.Id))
 
 	if err != nil {
-		return errMsg{err}
+		return data.WrapError(err)
 	}
 
-	dateMap := make(map[date]menu, len(*menuMap))
+	dateMap := make(map[date]data.Menu, len(*menuMap))
 	for str, value := range *menuMap {
 		parsed, err := time.Parse(time.DateOnly, str)
 
 		if err != nil {
-			return errMsg{err}
+			return data.WrapError(err)
 		}
 
 		dateMap[date(parsed)] = value
@@ -94,14 +99,16 @@ func (d date) FilterValue() string {
 		time.Time(d).Format("Monday January"),
 	}, " ")
 }
+
 func (d date) Title() string {
 	return time.Time(d).Format(time.DateOnly)
 }
+
 func (d date) Description() string {
-	return FormatRelativeToday(time.Time(d))
+	return utils.FormatRelativeToday(time.Time(d))
 }
 
-type dateMapMsg map[date]menu
+type dateMapMsg map[date]data.Menu
 
 func (m selectDateModel) Init() tea.Cmd {
 	return tea.Batch(m.spinner.Tick, m.loadDateMap)
@@ -113,7 +120,7 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		h, v := appStyle.GetFrameSize()
+		h, v := utils.AppStyle().GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
 
 	case spinner.TickMsg:
@@ -133,8 +140,8 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		closestDate := slices.MinFunc(dates, func(a, b date) int {
 			currentTime := time.Now()
-			diffA := Abs(time.Time(a).Sub(currentTime))
-			diffB := Abs(time.Time(b).Sub(currentTime))
+			diffA := utils.Abs(time.Time(a).Sub(currentTime))
+			diffB := utils.Abs(time.Time(b).Sub(currentTime))
 			return cmp.Compare(diffA, diffB)
 		})
 
@@ -142,7 +149,7 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		return m, m.list.SetItems(items)
 
-	case errMsg:
+	case data.ErrMsg:
 		m.loading = false
 		return m, tea.Quit
 
@@ -155,13 +162,13 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, submitKey):
 			return m, func() tea.Msg {
 				if v, ok := m.list.SelectedItem().(date); ok {
-					return errMsg{fmt.Errorf("date selection not implemented! %s", v.Title())}
+					return data.NewError(fmt.Sprintf("date selection not implemented! %s", v.Title()))
 				} else {
-					return errMsg{errors.New("selected item was not a date! (somehow...?)")}
+					return data.NewError("selected item was not a date! (somehow...?)")
 				}
 			}
 		case key.Matches(msg, previousMenuKey):
-			return ChangeModel(SelectMensa())
+			return utils.ChangeModel(mensa.SelectMensa())
 		}
 	}
 
@@ -178,7 +185,7 @@ func (m selectDateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m selectDateModel) View() string {
 	if m.loading {
-		return fmt.Sprintf("%s Loading menu for %s...", m.spinner.View(), m.mensa.Title())
+		return fmt.Sprintf("%s Loading menu for %s...", m.spinner.View(), m.mensa.Name.De)
 	}
 	return m.list.View()
 }

@@ -1,34 +1,19 @@
-package main
+package utils
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"golang.org/x/exp/constraints"
+	. "fmt"
+	. "golang.org/x/exp/constraints"
 	"net/http"
 	. "time"
 )
 
-func Abs[T constraints.Integer](x T) T {
+func Abs[T Integer](x T) T {
 	if x < 0 {
 		return -x
 	}
 	return x
 }
-
-var (
-	// TODO: these are mutable, use methods and separate
-	submitKey = key.NewBinding(
-		key.WithKeys("enter", "ctrl+q", " "),
-		key.WithHelp("enter/␣", "select item"),
-	)
-
-	previousMenuKey = key.NewBinding(
-		key.WithKeys("backspace", "shift+backspace"),
-		key.WithHelp("⌫", "back to previous menu"),
-	)
-)
 
 func FromRemoteJson[T any](url string) (*T, error) {
 	c := &http.Client{Timeout: 1 * Second}
@@ -47,12 +32,6 @@ func FromRemoteJson[T any](url string) (*T, error) {
 	}
 
 	return &ret, nil
-}
-
-func DelayCmd(d Duration, cb tea.Cmd) tea.Cmd {
-	return tea.Tick(d, func(t Time) tea.Msg {
-		return cb()
-	})
 }
 
 func FormatRelativeToday(target Time) string {
@@ -88,20 +67,16 @@ func FormatRelativeToday(target Time) string {
 		return "tomorrow"
 	default:
 		if targetDate.Before(nowDate) {
-			return fmt.Sprintf("%d days ago", Abs(daysApart))
+			return Sprintf("%d days ago", Abs(daysApart))
 		} else {
 			switch weeksApart {
 			case 0:
-				return fmt.Sprintf("this %s", weekday)
+				return Sprintf("this %s", weekday)
 			case 1:
-				return fmt.Sprintf("next %s", weekday)
+				return Sprintf("next %s", weekday)
 			default:
-				return fmt.Sprintf("%s in %d weeks", weekday, Abs(weeksApart))
+				return Sprintf("%s in %d weeks", weekday, Abs(weeksApart))
 			}
 		}
 	}
-}
-
-func ChangeModel(m tea.Model) (tea.Model, tea.Cmd) {
-	return m, tea.Batch(m.Init(), tea.WindowSize())
 }

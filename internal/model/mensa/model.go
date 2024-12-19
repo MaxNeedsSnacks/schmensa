@@ -1,18 +1,22 @@
-package main
+package mensa
 
 import (
-	"errors"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	gloss "github.com/charmbracelet/lipgloss"
+	"schmensa/internal/data"
+	"schmensa/internal/model/date"
+	"schmensa/internal/utils"
 )
 
 var (
 	mensaSpinner = gloss.NewStyle().
-		Foreground(gloss.Color("#25A065"))
+			Foreground(gloss.Color("#25A065"))
+
+	submitKey = utils.SubmitKey()
 )
 
 func mensaListStyle() list.Styles {
@@ -55,14 +59,16 @@ func SelectMensa() tea.Model {
 const canteensUrl = "https://mobil.itmc.tu-dortmund.de/canteen-menu/v3/canteens/"
 
 func loadMensaList() tea.Msg {
-	mensas, err := FromRemoteJson[[]mensa](canteensUrl)
+	mensas, err := utils.FromRemoteJson[[]mensa](canteensUrl)
 
 	if err != nil {
-		return errMsg{err}
+		return data.WrapError(err)
 	}
 
 	return mensaMsg(*mensas)
 }
+
+type mensa data.Mensa
 
 func (m mensa) FilterValue() string { return m.Name.De }
 func (m mensa) Title() string       { return m.Name.De }
@@ -81,7 +87,7 @@ func (m selectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		h, v := appStyle.GetFrameSize()
+		h, v := utils.AppStyle().GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
 
 	case spinner.TickMsg:
@@ -97,7 +103,7 @@ func (m selectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		return m, m.list.SetItems(items)
 
-	case errMsg:
+	case data.ErrMsg:
 		m.loading = false
 		return m, tea.Quit
 
@@ -111,13 +117,13 @@ func (m selectMensaModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if v, ok := m.list.SelectedItem().(mensa); ok {
 					return mensaSelectMsg(v)
 				} else {
-					return errMsg{errors.New("selected item was not a mensa! (somehow...?)")}
+					return data.NewError("selected item was not a mensa! (somehow...?)")
 				}
 			}
 		}
 
 	case mensaSelectMsg:
-		return ChangeModel(SelectDate(mensa(msg)))
+		return utils.ChangeModel(date.SelectDate(data.Mensa(msg)))
 	}
 
 	if m.loading {
